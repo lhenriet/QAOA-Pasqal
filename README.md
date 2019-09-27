@@ -1,2 +1,2 @@
-# Plap
-Plapp
+# UD-MIS-QAOA
+This repository contains the code used to compute the results presented in arxiv:...
