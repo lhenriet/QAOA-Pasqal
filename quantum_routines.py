@@ -10,13 +10,13 @@ import math
 
 ####PAULI OPERATORS####
 
-def sigma_x_operator(basis_vector,indices,pos_sigma=-1,**kwargs):
+def sigma_x_operator(basis_vector,indices,pos_sigma=-1):
     """Operator that creates the matrix representation of sigma_x."""
     M=sigma_plus_operator(basis_vector,indices,pos_sigma=-1,**kwargs)
     return M+np.transpose(M)
 
 
-def sigma_plus_operator(basis_vector,indices,pos_sigma=-1,**kwargs):
+def sigma_plus_operator(basis_vector,indices,pos_sigma):
     """
     Operator that creates the matrix representation of sigma_+
         we create an overloading variable pos_sigma, that denotes the position of the sigma_+
@@ -47,7 +47,7 @@ def sigma_plus_operator(basis_vector,indices,pos_sigma=-1,**kwargs):
 
 
 
-def sigma_z_operator(basis_vector,pos=-1,**kwargs):
+def sigma_z_operator(basis_vector,pos=-1):
     """
     Operator that creates the matrix representation of sigma_z. As sigma^z is diagonal in the computat ional basis,
     we will only return a vector-type array and later apply element-wise multiplication with the wavefunction
@@ -72,7 +72,7 @@ def sigma_z_operator(basis_vector,pos=-1,**kwargs):
 
 
 
-def sigma_z_z_operator(basis_vector,pos_1,pos_2,**kwargs):
+def sigma_z_z_operator(basis_vector,pos_1,pos_2):
     """
     Operator that creates the matrix representation of sigma_z(pos_1)sigma_z(pos_2).
     As it is diagonal in the computational basis, we will only return a vector-type array and
@@ -111,7 +111,7 @@ def expectation_value(psi,H_2):
     return np.vdot(psi,Hpsi)
 
 
-def expected_shortfall(H,psi,H_2,seuil,**kwargs):
+def expected_shortfall(H,psi,H_2,seuil):
     """Function that computes the expected shortfall of H_2. Measurements in the computational basis."""
     val=0.
     prob=0.
@@ -303,7 +303,7 @@ def dephasing(basis_vector,psi_loc,location_jump):
 
 
 
-####RUN routines. Different kinds of evolutions. 
+####RUN routines. Different kinds of evolutions.
 
 
 def QAOA_single_run_observable_heuristics(theta,H,psi_l,H_1,H_2,H_diss,N_max,N_min,indices,stability_threshold,seuil_prog):
