@@ -159,18 +159,18 @@ def generate_Hamiltonians(Hilbert_space,indices_coupling,**kwargs):
     The third one is the dissipation
     """
     if settings.problem=="MIS":
-        H_11=settings.Omega1*quantum_preparation.sigma_x_operator(Hilbert_space,indices_coupling)
-        H_22=settings.delta_ee*quantum_preparation.sigma_z_operator(Hilbert_space)
-        H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_preparation.sigma_z_operator(Hilbert_space)
+        H_11=settings.Omega1*quantum_routines.sigma_x_operator(Hilbert_space,indices_coupling)
+        H_22=settings.delta_ee*quantum_routines.sigma_z_operator(Hilbert_space)
+        H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_routines.sigma_z_operator(Hilbert_space)
     elif settings.problem=="MaxCut":
-        H_11=settings.Omega1*quantum_preparation.sigma_x_operator(Hilbert_space,indices_coupling)
+        H_11=settings.Omega1*quantum_routines.sigma_x_operator(Hilbert_space,indices_coupling)
         graph_instance=kwargs.get('graph_instance',False)
         edges=graph_instance.connections
         weights=graph_instance.weights
-        H_22=weights[0]*quantum_preparation.sigma_z_z_operator(Hilbert_space,edges[0][0],edges[0][1])
+        H_22=weights[0]*quantum_routines.sigma_z_z_operator(Hilbert_space,edges[0][0],edges[0][1])
         for m in range(1,len(edges)):
-            H_22+=weights[m]*quantum_preparation.sigma_z_z_operator(Hilbert_space,edges[m][0],edges[m][1])
-        H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_preparation.sigma_z_operator(Hilbert_space)
+            H_22+=weights[m]*quantum_routines.sigma_z_z_operator(Hilbert_space,edges[m][0],edges[m][1])
+        H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_routines.sigma_z_operator(Hilbert_space)
 
     else: ##Custom problem. Needs to specify the unitary.
         pass

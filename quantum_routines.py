@@ -12,7 +12,7 @@ import math
 
 def sigma_x_operator(basis_vector,indices,pos_sigma=-1):
     """Operator that creates the matrix representation of sigma_x."""
-    M=sigma_plus_operator(basis_vector,indices,pos_sigma=-1,**kwargs)
+    M=sigma_plus_operator(basis_vector,indices,pos_sigma=-1)
     return M+np.transpose(M)
 
 
@@ -306,7 +306,7 @@ def dephasing(basis_vector,psi_loc,location_jump):
 ####RUN routines. Different kinds of evolutions.
 
 
-def QAOA_single_run_observable_heuristics(theta,H,psi_l,H_1,H_2,H_diss,N_max,N_min,indices,stability_threshold,seuil_prog):
+def QAOA_single_run_observable(theta,H,psi_l,H_1,H_2,H_diss,indices,N_max=1,N_min=0,stability_threshold=settings.stability_threshold):
     # We can make it a little bit more modular as well.
     p=int(len(theta))
     val_tab=[]
@@ -328,10 +328,10 @@ def QAOA_single_run_observable_heuristics(theta,H,psi_l,H_1,H_2,H_diss,N_max,N_m
                                                 indices=indices,tunneling='off')
         ###We compute the observable only at the end of the calculation
         psi=psi/np.linalg.norm(psi)
-        val_tab.append(compute_observable(H,psi,H_2))#,var_progressive=False,seuil_var_progressive=seuil_prog))
+        val_tab.append(compute_observable(H,psi,H_2))
         ##Test if we have gathered enough statistics for the precision threshold that we ask. We also ask a min number of traj
         if np.std(val_tab)/np.sqrt(kk+1.)<stability_threshold and kk>N_min:
-            #print(np.mean(val_tab)," ",np.std(val_tab)," ",kk)
+
             return np.mean(val_tab)
-    #print(np.mean(val_tab)," ",np.std(val_tab)," ",kk)
+
     return np.mean(val_tab)
