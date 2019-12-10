@@ -184,6 +184,7 @@ def evol_scipy(psi,mat1,mat2,tf,**kwargs):
     else:
         rn=random.random()                                          #random number. if norm(psi)<rn, then jump.
         is_norm_positive=get_test_jump(rn)                          #Automatic stopping of the time-evolution
+        is_norm_positive.terminal=True
         finished=False                                              #if the norm of psi gets below rn.
         while not finished:
             sol=scipy.integrate.solve_ivp(H_on_psi, t_span, psi, method='RK45',
@@ -198,10 +199,12 @@ def evol_scipy(psi,mat1,mat2,tf,**kwargs):
                 m=get_jump_index(tab)
                 (psi,mat2)=quantum_jump(type,basis_vector,psi,mat1,mat2,indices,m-1)
 
-                #Update of the Hamiltonian, time-span and random number
+                #Update of the Hamiltonian, time-span, random number and stopping condition
                 H_on_psi=get_derivative(mat1,mat2,**kwargs)
                 t_span=(sol.t[-1],tf)
                 rn=random.random()
+                is_norm_positive=get_test_jump(rn)
+                is_norm_positive.terminal=True
 
     return (psi,mat2)
 
