@@ -159,13 +159,18 @@ def get_derivative(mat1,mat2,**kwargs):
             return -1j*np.multiply(mat1,yy)-1j*(mat2 @yy)
         return H_on_psi_loc
 
+def get_derivative_density_matrix(mat1,mat2,**kwargs):
+    """Decorated. Returns function for t-evolution using the numerical integration of the density matrix"""
+    def H_on_psi_loc(tt,yy):
+        return -1j*np.multiply(mat1,yy)
+    return H_on_psi_loc
+
 
 
 def evol_scipy(psi,mat1,mat2,tf,**kwargs):
     """
     Main time-evolution function for the wavefunction.
     """
-
     dissipative=settings.dissipation
     indices=kwargs.get('indices',0.)
     basis_vector=kwargs.get('basis_vector',0.)
@@ -179,11 +184,11 @@ def evol_scipy(psi,mat1,mat2,tf,**kwargs):
                                         events=None, vectorized=False)
         values=sol.y
         psi=values[ : , -1]
-
     #Dissipative time-evolution. Jumps allowed.
     else:
         rn=random.random()                                          #random number. if norm(psi)<rn, then jump.
         is_norm_positive=get_test_jump(rn)                          #Automatic stopping of the time-evolution
+        is_norm_positive.terminal=True
         finished=False                                              #if the norm of psi gets below rn.
         while not finished:
             sol=scipy.integrate.solve_ivp(H_on_psi, t_span, psi, method='RK45',
@@ -193,7 +198,8 @@ def evol_scipy(psi,mat1,mat2,tf,**kwargs):
             psi=values[ : , -1]
             if len(sol.t_events[0])<1:                              #We reached the final time without jump.
                 finished=True
-            else:                                                   #There is a jump
+            else:
+                #print("aqui but shouldn't")                                                  #There is a jump
                 (type,tab)=compute_jump_probas(psi,basis_vector)
                 m=get_jump_index(tab)
                 (psi,mat2)=quantum_jump(type,basis_vector,psi,mat1,mat2,indices,m-1)
@@ -202,6 +208,30 @@ def evol_scipy(psi,mat1,mat2,tf,**kwargs):
                 H_on_psi=get_derivative(mat1,mat2,**kwargs)
                 t_span=(sol.t[-1],tf)
                 rn=random.random()
+                is_norm_positive=get_test_jump(rn)
+                is_norm_positive.terminal=True
+
+
+    return (psi,mat2)
+
+
+
+def evol_scipy_rho(rho0,mat1,mat2,tf,**kwargs):
+    """
+    Main time-evolution function for the density matrix.
+    """
+    indices=kwargs.get('indices',0.)
+    basis_vector=kwargs.get('basis_vector',0.)
+    mat2=csr_matrix(mat2)
+    L_on_rho=get_derivative_density_matrix(mat1,mat2,**kwargs)
+
+    t_span=(0.,tf)
+    #Coherent time-evolution.
+    if not dissipative:
+        sol=scipy.integrate.solve_ivp(L_on_rho, t_span, rho0, method='RK45',
+                                        t_eval=None, dense_output=False, vectorized=False)
+        values=sol.y
+        rho=values[ : , -1]
 
     return (psi,mat2)
 
@@ -306,7 +336,41 @@ def dephasing(basis_vector,psi_loc,location_jump):
 ####RUN routines. Different kinds of evolutions.
 
 
-def QAOA_single_run_observable(theta,H,psi_l,H_1,H_2,H_diss,indices,N_max=1,N_min=0,stability_threshold=settings.stability_threshold):
+def QAOA_single_run_observable(theta,H,psi_l,H_Rabi,H_detuning,H_diss,indices,N_max=102,N_min=50,stability_threshold=0.04):#settings.stability_threshold):
+    # We can make it a little bit more modular as well.
+    p=int(len(theta))
+    val_tab=[]
+    for kk in range(N_max):
+        psi=psi_l
+        mat_Rabi=H_Rabi
+        for pp in range(p):
+            if pp%2==0:
+                mat_diag=H_diss
+                (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                                                    indices=indices)
+            else:
+                if settings.type_evolution=="mixte":
+                    mat_diag=H_detuning+H_diss
+                    (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                                                indices=indices)
+                else:
+                    (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                                                indices=indices,tunneling='off')
+        ###We compute the observable only at the end of the calculation
+        psi=psi/np.linalg.norm(psi)
+        val_tab.append(compute_observable(H,psi,H_detuning))
+        ##Test if we have gathered enough statistics for the precision threshold that we ask. We also ask a min number of traj
+        if np.std(val_tab)/np.sqrt(kk+1.)<stability_threshold and kk>N_min:
+
+            return np.mean(val_tab)
+
+    return np.mean(val_tab)
+
+
+
+
+
+def QAOA_single_run_observable_density_matrix(theta,H,psi_l,H_1,H_2,H_diss,indices,N_max=102,N_min=50,stability_threshold=0.04):#settings.stability_threshold):
     # We can make it a little bit more modular as well.
     p=int(len(theta))
     val_tab=[]
@@ -335,3 +399,9 @@ def QAOA_single_run_observable(theta,H,psi_l,H_1,H_2,H_diss,indices,N_max=1,N_mi
             return np.mean(val_tab)
 
     return np.mean(val_tab)
+
+
+
+
+#Changer l'ordre de H_1 et H_2. A vérifier.
+#La resolution directe sera une approximation

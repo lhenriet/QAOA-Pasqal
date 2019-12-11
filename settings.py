@@ -14,7 +14,7 @@ def init():
     degree=3
 
     global dissipation
-    dissipation=False
+    dissipation=True
 
     global distance
     distance=1. #parameter for UD graphs. Distance below which there is an edge between vertices
@@ -37,7 +37,7 @@ def init():
     delta_rr=-0.
 
     global Gamma
-    Gamma=0.
+    Gamma=0.1
     #theta=np.ones(2*(p))
 
     global gamma_deph
@@ -48,8 +48,8 @@ def init():
     #type_observable=["energy",0.]
 
     global type_evolution
-    type_evolution="not mixte"
-    #type_evolution="mixte"
+    #type_evolution="not mixte"
+    type_evolution="mixte"
 
     global branching_ratio
     branching_ratio=2./3.
