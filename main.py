@@ -113,4 +113,22 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ###TESTING MODULE###
+    settings.init()
+    mat_diag=np.ones(3)
+    mat_Rabi=np.zeros((3, 3))
+    mat_Rabi[1,0]=mat_Rabi[0,1]=2
+
+    mat_diss=-1j*np.zeros((3, 3))
+    mat_diss[0,0]=-1j
+    mat_diss[1,1]=-1j
+    mat_diss[2,2]=-2j
+
+    sigma_plus=np.zeros((3, 3))
+    sigma_plus[2,0]=sigma_plus[0,2]=1
+    tge=np.zeros((3, 3))
+    tge[0,0]=1
+    AA=quantum_routines.get_derivative_density_matrix(mat_diag,mat_Rabi,mat_diss,sigma_plus)
+    print(AA(0.,tge))
+
+#    main()
