@@ -159,8 +159,8 @@ def generate_Hamiltonians(Hilbert_space,indices_coupling,**kwargs):
     The third one is the dissipation
     """
     if settings.problem=="MIS":
-        H_11=settings.Omega1*quantum_routines.sigma_x_operator(Hilbert_space,indices_coupling)
-        H_22=settings.delta_ee*quantum_routines.sigma_z_operator(Hilbert_space)
+        H_Rabi=settings.Omega1*quantum_routines.sigma_x_operator(Hilbert_space,indices_coupling)
+        H_detuning=settings.delta_ee*quantum_routines.sigma_z_operator(Hilbert_space)
         H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_routines.sigma_z_operator(Hilbert_space)
     elif settings.problem=="MaxCut":
         H_11=settings.Omega1*quantum_routines.sigma_x_operator(Hilbert_space,indices_coupling)
@@ -172,6 +172,7 @@ def generate_Hamiltonians(Hilbert_space,indices_coupling,**kwargs):
             H_22+=weights[m]*quantum_routines.sigma_z_z_operator(Hilbert_space,edges[m][0],edges[m][1])
         H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_routines.sigma_z_operator(Hilbert_space)
 
+
     else: ##Custom problem. Needs to specify the unitary.
         pass
-    return (H_11,H_22,H_dissipation)
+    return (H_Rabi,H_detuning,H_dissipation)
