@@ -21,7 +21,7 @@ def init():
     # Maybe change to density ---> more relevant parameter
 
     global N
-    N=14 #number of vertices in the graph
+    N=8 #number of vertices in the graph
     #p=2# Depth of the QAOA algorithm
 
     global density
@@ -44,15 +44,15 @@ def init():
     gamma_deph=0.0
 
     global type_observable
-    type_observable=["cVAR",0.6] # Choose in {["energy",0.],["cVAR",seuil]}. cVAR corresponds to the expected shortfall in the "seuil" better cases.
-    #type_observable=["energy",0.]
+    #type_observable=["cVAR",0.6] # Choose in {["energy",0.],["cVAR",seuil]}. cVAR corresponds to the expected shortfall in the "seuil" better cases.
+    type_observable=["energy",0.]
 
     global type_evolution
     #type_evolution="not mixte"
     type_evolution="mixte"
 
     global branching_ratio
-    branching_ratio=2./3.
+    branching_ratio=0.#2./3.
 
     global delt
     delt=2**(-8)

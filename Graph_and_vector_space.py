@@ -172,6 +172,7 @@ def generate_Hamiltonians(Hilbert_space,indices_coupling,**kwargs):
             H_22+=weights[m]*quantum_routines.sigma_z_z_operator(Hilbert_space,edges[m][0],edges[m][1])
         H_dissipation=-1j/2.*(settings.Gamma+settings.gamma_deph)*quantum_routines.sigma_z_operator(Hilbert_space)
 
+
     else: ##Custom problem. Needs to specify the unitary.
         pass
     return (H_Rabi,H_detuning,H_dissipation)

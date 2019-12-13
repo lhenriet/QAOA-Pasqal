@@ -8,15 +8,18 @@ import settings
 import math
 
 
+
+
+
 ####PAULI OPERATORS####
 
 def sigma_x_operator(basis_vector,indices,pos_sigma=-1):
     """Operator that creates the matrix representation of sigma_x."""
-    M=sigma_plus_operator(basis_vector,indices,pos_sigma=-1)
+    M=sigma_moins_operator(basis_vector,indices,pos_sigma=-1)
     return M+np.transpose(M)
 
 
-def sigma_plus_operator(basis_vector,indices,pos_sigma):
+def sigma_moins_operator(basis_vector,indices,pos_sigma):
     """
     Operator that creates the matrix representation of sigma_+
         we create an overloading variable pos_sigma, that denotes the position of the sigma_+
@@ -112,7 +115,7 @@ def expectation_value(psi,H_2):
 
 
 def expected_shortfall(H,psi,H_2,seuil):
-    """Function that computes the expected shortfall of H_2. Measurements in the computational basis."""
+    """Function that computes the expected shortfall of H_2. """
     val=0.
     prob=0.
     integer=len(psi)-1
@@ -123,8 +126,26 @@ def expected_shortfall(H,psi,H_2,seuil):
     return -val/prob
 
 
+
+def expectation_value_rho(rho,H_2):
+    """Function that computes the expectation value of H_2. """
+    return np.trace(H_2@rho )
+
+
+def expected_shortfall_rho(H,rho,H_2,seuil):
+    """Function that computes the expected shortfall of H_2. """
+    return np.trace(H_2@rho )
+    #val=0.
+    #prob=0.
+    #integer=len(psi)-1
+    #while prob<(seuil-0.00001):
+    #    prob+=abs(psi[integer])**2
+    #    val+=abs(psi[integer])**2*len(H[integer])
+    #    integer-=1
+    #return -val/prob
+
 def compute_observable(H,psi,H_2,**kwargs):
-    """Function called to procede to observable evaluation."""
+    """Function called to evaluate the observable on the wavefunction."""
     if settings.type_observable[0]=="energy":
         return (expectation_value(psi,H_2)).real
     elif settings.type_observable[0]=="cVAR":
@@ -137,6 +158,20 @@ def compute_observable(H,psi,H_2,**kwargs):
             else:
                 seuil_progressive=kwargs.get('seuil_var_progressive',False)
                 return (expected_shortfall(H,psi,H_2,seuil_progressive)).real
+
+
+def compute_observable_rho(H,rho,H_detuning,**kwargs):
+    """Function called to evaluate the observable on the density matrix."""
+    H_2=square_mat(H_detuning)
+    if settings.type_observable[0]=="energy":
+        return (expectation_value_rho(rho,H_2)).real
+    elif settings.type_observable[0]=="cVAR":
+        if settings.type_observable[1]==0.:
+            raise ValueError('could not find a positive threshold value for the expected shortfall')
+        else:
+            return (expected_shortfall_rho(rho,psi,H_2,settings.type_observable[1])).real
+
+
 
 
 
@@ -162,26 +197,42 @@ def get_derivative(mat_diag,mat_Rabi,**kwargs):
 
 def square_mat(diagonal_matrice):
     dim=len(diagonal_matrice)
-    mat_square=np.zeros((dim, dim))
+    mat_square=np.zeros((dim, dim),dtype=complex)
     for mm in range(dim):
         mat_square[mm,mm]=diagonal_matrice[mm]
     return mat_square
 
 
-def get_derivative_density_matrix(mat_diag,mat_Rabi,mat_diss,sigma_plus,**kwargs):
+def get_derivative_density_matrix(mat_diag,mat_Rabi,sigma_moins_array,**kwargs):
     """
     Returns function for t-evolution using the numerical integration of the density matrix
     \dot{\rho}=-i(H_eff \rho-\rho H_eff^{\dagger})
     +\Gamma \sum_j \sigma_j^_ \rho \sigma_j^+
     """
-    def L_on_psi_loc(tt,yy):
-        H_eff=csr_matrix(mat_Rabi+square_mat(mat_diag)+mat_diss)
-        return -1j*(H_eff @ yy- yy @ H_eff.conj().T)+settings.Gamma*(sigma_plus.transpose() @ yy @ sigma_plus)
-    return L_on_psi_loc
+    dim=len(mat_diag)
+    tunneling=kwargs.get('tunneling','on')
+
+
+    if tunneling=='off':
+
+        def L_on_rho_loc(tt,yy):
+            yy=np.reshape(yy, (dim,dim))
+            H_eff=csr_matrix(square_mat(mat_diag))
+            deriv=-1j*(H_eff @ yy- yy @ (H_eff.conj()).transpose())+settings.Gamma*sum(sig @ yy @ (sig.transpose()) for sig in sigma_moins_array)
+            return np.reshape(deriv, dim*dim)
+        return L_on_rho_loc
+
+    else:
+        def L_on_rho_loc(tt,yy):
+            yy=np.reshape(yy, (dim,dim))
+            H_eff=csr_matrix(mat_Rabi+square_mat(mat_diag))
+            deriv=-1j*(H_eff @ yy- yy @ (H_eff.conj()).transpose())+settings.Gamma*sum(sig @ yy @ (sig.transpose()) for sig in sigma_moins_array)
+            return np.reshape(deriv, dim*dim)
+        return L_on_rho_loc
 
 
 
-def evol_scipy(psi,mat_diag,mat_Rabi,tf,**kwargs):
+def evol_scipy(psi,mat_diag,mat_Rabi,tf,k,rn=-1,**kwargs):
     """
     Main time-evolution function for the wavefunction.
     """
@@ -200,10 +251,11 @@ def evol_scipy(psi,mat_diag,mat_Rabi,tf,**kwargs):
         psi=values[ : , -1]
     #Dissipative time-evolution. Jumps allowed.
     else:
-        rn=random.random()                                          #random number. if norm(psi)<rn, then jump.
-        is_norm_positive=get_test_jump(rn)                          #Automatic stopping of the time-evolution
-        is_norm_positive.terminal=True
-        finished=False                                              #if the norm of psi gets below rn.
+        if rn<0:
+            rn=random.random()                                          #random number. if norm(psi)<rn, then jump.
+        is_norm_positive=get_test_jump(rn)                              #Automatic stopping of the time-evolution
+        is_norm_positive.terminal=True                                  #if the norm of psi gets below rn.
+        finished=False
         while not finished:
             sol=scipy.integrate.solve_ivp(H_on_psi, t_span, psi, method='RK45',
                                             t_eval=None, dense_output=False,
@@ -213,9 +265,9 @@ def evol_scipy(psi,mat_diag,mat_Rabi,tf,**kwargs):
             if len(sol.t_events[0])<1:                              #We reached the final time without jump.
                 finished=True
             else:                                                   #There is a jump
-                (type,tab)=compute_jump_probas(psi,basis_vector)
-                m=get_jump_index(tab)
-                (psi,mat_Rabi)=quantum_jump(type,basis_vector,psi,mat_diag,mat_Rabi,indices,m-1)
+                (type,tab)=compute_jump_probas(psi,basis_vector,k)
+                m=get_jump_index(tab,k)
+                (psi,mat_Rabi)=quantum_jump(type,basis_vector,psi,mat_diag,mat_Rabi,indices,m)
 
                 #Update of the Hamiltonian, time-span and random number
                 H_on_psi=get_derivative(mat_diag,mat_Rabi,**kwargs)
@@ -223,12 +275,11 @@ def evol_scipy(psi,mat_diag,mat_Rabi,tf,**kwargs):
                 rn=random.random()
                 is_norm_positive=get_test_jump(rn)
                 is_norm_positive.terminal=True
-
-    return (psi,mat_Rabi)
-
+    return (psi,mat_Rabi,rn)
 
 
-def evol_scipy_rho(rho0,matdiag,mat_Rabi,tf,**kwargs):
+
+def evol_scipy_rho(rho0,matdiag,mat_Rabi,tf,k,**kwargs):
     """
     Main time-evolution function for the density matrix.
     """
@@ -236,15 +287,19 @@ def evol_scipy_rho(rho0,matdiag,mat_Rabi,tf,**kwargs):
     basis_vector=kwargs.get('basis_vector',0.)
 
     mat_Rabi=csr_matrix(mat_Rabi)
-    sigma_plus=sigma_plus_operator(basis_vector,indices,pos_sigma=-1)
-    L_on_rho=get_derivative_density_matrix(matdiag,mat_Rabi,sigma_plus,**kwargs)
+    sigma_moins_tab=[]
+    for jjj in k:
+        sigma_moins_tab.append(csr_matrix(sigma_moins_operator(basis_vector,indices,jjj)))
+    L_on_rho=get_derivative_density_matrix(matdiag,mat_Rabi,sigma_moins_tab,**kwargs)
     t_span=(0.,tf)
 
-
+    rho0=np.reshape(rho0, len(matdiag)*len(matdiag))
     sol=scipy.integrate.solve_ivp(L_on_rho, t_span, rho0, method='RK45',
                                         t_eval=None, dense_output=False, vectorized=False)
+
     values=sol.y
     rho=values[ : , -1]
+    rho=np.reshape(rho, (len(matdiag),len(matdiag)))
 
     return rho
 
@@ -255,18 +310,18 @@ def evol_scipy_rho(rho0,matdiag,mat_Rabi,tf,**kwargs):
 def get_test_jump(rn):
     """"Decorated. This function returns the function to evaluate for stopping of t-evol."""
     def norm_positive_loc(t,y):
-        return np.linalg.norm(y)-rn
+        return np.linalg.norm(y)**2-rn
     return norm_positive_loc
 
-def get_jump_index(tab):
+def get_jump_index(tab,k):
     """This function returns the index of the jump."""
     rn2=random.random()
     temp=0.
     m=0
-    while temp<rn2 and m<len(tab):
+    while temp<rn2:
         temp+=tab[m]
         m+=1
-    return m
+    return k[m-1]
 
 
 def quantum_jump(type,basis_vector,psi_loc,mat_diagloc,mat_Rabiloc,indices,location_jump):
@@ -274,10 +329,10 @@ def quantum_jump(type,basis_vector,psi_loc,mat_diagloc,mat_Rabiloc,indices,locat
     if type=="Emission":                                #Jump by spontaneous emission
         (psi_new,indices_to_delete)=jump_elements(basis_vector,psi_loc,indices,location_jump)
         rn=random.random()
-        if rn<settings.branching_ratio:                 #If one goes to the uncoupled
+        if rn<settings.branching_ratio:                     #If one goes to the uncoupled
             ido=np.identity(mat_Rabiloc.shape[0])           #ground state, we set the corresponding
-            for a in indices_to_delete:                 #matrix elements to zero, so that further
-                ido[a,a]=0.                             #re-excitation will not be possible
+            for a in indices_to_delete:                     #matrix elements to zero, so that further
+                ido[a,a]=0.                                 #re-excitation will not be possible
             ido=csr_matrix(ido)
             for mm in indices_to_delete:
                 mat_Rabiloc=ido@mat_Rabiloc@ido
@@ -287,7 +342,7 @@ def quantum_jump(type,basis_vector,psi_loc,mat_diagloc,mat_Rabiloc,indices,locat
         psi_new=dephasing(basis_vector,psi_loc,location_jump)
         return (psi_new/np.linalg.norm(psi_new),mat_Rabiloc)
 
-def compute_jump_probas(psi,basis_vector):
+def compute_jump_probas(psi,basis_vector,k):
     """This function computes the probabilities of jumps, and the type \in {Emission,Dephasing}."""
     tab=np.zeros(settings.N)
     G=settings.Gamma                                                      #taux emission spontanee
@@ -300,10 +355,10 @@ def compute_jump_probas(psi,basis_vector):
         type="Dephasing"
 
     p_tot=0.
-    for mm in range(settings.N):                                          #we loop over all the possible jump sites
+    for mm in k:                                                        #we loop over all the possible jump sites.
         H_loc=-1j/2.*sigma_z_operator(basis_vector,mm)                  #Creation of jump operators
         Hpsi=np.multiply(H_loc,psi)
-        tab[mm]=abs(np.vdot(psi,1j*Hpsi))                                 #Probability of jump mm
+        tab[mm]=abs(np.vdot(psi,1j*Hpsi))                               #Probability of jump mm
         p_tot+=abs(np.vdot(psi,1j*Hpsi))
     return (type,tab/p_tot)
 
@@ -349,41 +404,43 @@ def dephasing(basis_vector,psi_loc,location_jump):
 ####RUN routines. Different kinds of evolutions.
 
 
-def QAOA_single_run_observable(theta,H,psi_l,H_Rabi,H_detuning,H_diss,indices,N_max=102,N_min=50,stability_threshold=0.04):#settings.stability_threshold):
+def QAOA_single_run_observable(theta,H,psi_l,H_Rabi,H_detuning,H_diss,indices,k,N_max=102,N_min=50,stability_threshold=0.04):#settings.stability_threshold):
     # We can make it a little bit more modular as well.
     p=int(len(theta))
     val_tab=[]
     for kk in range(N_max):
         psi=psi_l
         mat_Rabi=H_Rabi
+        rn=-1
         for pp in range(p):
             if pp%2==0:
                 mat_diag=H_diss
-                (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                (psi,mat_Rabi,rn)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],k,rn,basis_vector=H,
                                                     indices=indices)
+                mat_Rabi=H_Rabi
             else:
+                mat_diag=H_detuning+H_diss
                 if settings.type_evolution=="mixte":
-                    mat_diag=H_detuning+H_diss
-                    (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                    (psi,mat_Rabi,rn)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],k,rn,basis_vector=H,
                                                 indices=indices)
+                    mat_Rabi=H_Rabi
                 else:
-                    (psi,mat_Rabi)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                    (psi,mat_Rabi,rn)=evol_scipy(psi,mat_diag,mat_Rabi,theta[pp],k,rn,basis_vector=H,
                                                 indices=indices,tunneling='off')
+                    mat_Rabi=H_Rabi
         ###We compute the observable only at the end of the calculation
         psi=psi/np.linalg.norm(psi)
         val_tab.append(compute_observable(H,psi,H_detuning))
         ##Test if we have gathered enough statistics for the precision threshold that we ask. We also ask a min number of traj
         if np.std(val_tab)/np.sqrt(kk+1.)<stability_threshold and kk>N_min:
-
             return np.mean(val_tab)
-
     return np.mean(val_tab)
 
 
 
 
 
-def QAOA_single_run_observable_density_matrix(theta,H,rho0,H_Rabi,H_detuning,H_diss,indices):
+def QAOA_single_run_observable_density_matrix(theta,H,rho0,H_Rabi,H_detuning,H_diss,indices,k):
     # We can make it a little bit more modular as well.
     p=int(len(theta))
     rho=rho0
@@ -391,22 +448,16 @@ def QAOA_single_run_observable_density_matrix(theta,H,rho0,H_Rabi,H_detuning,H_d
     for pp in range(p):
         if pp%2==0:
             mat_diag=H_diss
-            rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+            rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],k,basis_vector=H,
                                                     indices=indices)
         else:
+            mat_diag=H_detuning+H_diss
             if settings.type_evolution=="mixte":
-                mat_diag=H_detuning+H_diss
-                rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],k,basis_vector=H,
                                                 indices=indices)
             else:
-                rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],basis_vector=H,
+                rho=evol_scipy_rho(rho,mat_diag,mat_Rabi,theta[pp],k,basis_vector=H,
                                                 indices=indices,tunneling='off')
         ###We compute the observable only at the end of the calculation
-    val_obs=compute_observable_rho(H,rho,H_2)
+    val_obs=compute_observable_rho(H,rho,H_detuning)
     return val_obs
-
-
-
-
-#Changer l'ordre de H_1 et H_2. A vérifier.
-#La resolution directe sera une approximation
