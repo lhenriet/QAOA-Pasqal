@@ -22,7 +22,7 @@ class Graph:
     """
 
     def __init__(self):
-
+        #plap
         self.typegraph=settings.type_graph    #Type of the graph
         self.Nvertices=settings.N             #Number of vertices
         edges=[]                              #List of all the connecting edges under the form [[a,b],[c,d],...] if the vertices a and b (c and d) are connected.
