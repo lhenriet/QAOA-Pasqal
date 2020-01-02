@@ -175,4 +175,4 @@ def generate_Hamiltonians(Hilbert_space,indices_coupling,**kwargs):
 
     else: ##Custom problem. Needs to specify the unitary.
         pass
-    return (H_Rabi,H_detuning,H_dissipation)
+    return (csr_matrix(H_Rabi),H_detuning,H_dissipation)
